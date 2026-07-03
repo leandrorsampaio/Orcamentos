@@ -92,7 +92,7 @@ export function renderPublicPage(o: Orcamento): string {
       <div class="co">
         <h1>Stilus Decorações</h1>
         <p>Rua Chico Pontes, 812, Vila Guilherme - CEP 02067-002</p>
-        <p>Fone: (011) 2978-2067 / Cel: (WhatsApp) 9-1096-1541</p>
+        <p>Fone: (11) 2365-1649 / Cel: (WhatsApp) 9-1096-1541</p>
         <p>E-mail: stilusdecora@gmail.com &nbsp; Instagram: stilus_decora</p>
       </div>
     </header>
