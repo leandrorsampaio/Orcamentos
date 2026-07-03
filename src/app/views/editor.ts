@@ -369,21 +369,6 @@ export async function renderEditor(id: string): Promise<void> {
     }, 800);
   }
 
-  async function onRevoke(): Promise<void> {
-    const ok = await confirmDialog({
-      title: "Desativar o link de compartilhamento? Quem tiver o link antigo não conseguirá mais abrir.",
-      confirmLabel: "Desativar",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      const res = await api.revokeLink(model.id);
-      model.share_id = res.orcamento.share_id;
-    } catch {
-      /* ignore */
-    }
-  }
-
   // ---- assemble ----
   const nomeInput = h("input", {
     type: "text",
@@ -405,7 +390,6 @@ export async function renderEditor(id: string): Promise<void> {
     h("button", { class: "btn btn-secondary", type: "button", onclick: () => onPdf() }, "⬇️ PDF"),
     h("button", { class: "btn btn-secondary", type: "button", onclick: () => onWhatsApp() }, "💬 WhatsApp"),
     h("button", { class: "btn btn-secondary", type: "button", onclick: () => onEmail() }, "✉️ E-mail"),
-    h("button", { class: "btn btn-tertiary", type: "button", onclick: () => onRevoke() }, "🔗 Desativar link"),
   );
 
   const adicionarItemBtn = h(
