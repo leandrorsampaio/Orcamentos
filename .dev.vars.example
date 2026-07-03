@@ -1,0 +1,12 @@
+# Copy this file to `.dev.vars` for local `wrangler dev`. Never commit `.dev.vars`.
+# In production these are set with: wrangler secret put <NAME>
+
+# Shared login password for the single user.
+APP_PASSWORD="troque-esta-senha"
+
+# Random 32+ byte key used to sign the session cookie (HMAC).
+# Generate one with:  openssl rand -base64 48
+SESSION_SECRET="cole-uma-chave-aleatoria-longa-aqui"
+
+# Resend API key for sending e-mail (optional in v1). Leave blank to disable e-mail.
+RESEND_API_KEY=""

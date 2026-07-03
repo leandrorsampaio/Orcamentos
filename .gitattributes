@@ -1,0 +1,8 @@
+# Treat source as text so diffs render (pdf.ts contains high Unicode/WinAnsi
+# chars that git would otherwise sniff as binary).
+*.ts    text diff
+*.css   text diff
+*.md    text diff
+*.json  text diff
+*.sql   text diff
+*.html  text diff
