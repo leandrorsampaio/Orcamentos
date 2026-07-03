@@ -8,7 +8,7 @@ import { formatCentavos, parseCentavos } from "../../shared/money";
 import { todayIso } from "../../shared/date";
 import { confirmDialog, h, mount } from "../ui";
 import { goEditor, goLista } from "../main";
-import { downloadPdf, pdfBase64, pdfFilename, printPdf, pdfBlobUrl } from "../pdf-client";
+import { downloadPdf, printPdf, pdfBlobUrl } from "../pdf-client";
 
 export async function renderEditor(id: string): Promise<void> {
   mount(h("div", { class: "wrap" }, h("p", { class: "empty" }, "Carregando…")));
@@ -322,7 +322,30 @@ export async function renderEditor(id: string): Promise<void> {
 
   async function onEmail(): Promise<void> {
     await flushSave();
-    openEmailDialog(model);
+    const link = `${location.origin}/o/${model.share_id}`;
+    const subject = `Orçamento — ${model.nome}`;
+    const body = `Olá! Segue o orçamento da Stilus Decora: ${link}`;
+    const su = encodeURIComponent(subject);
+    const bo = encodeURIComponent(body);
+    const gmailWeb = `https://mail.google.com/mail/?view=cm&fs=1&su=${su}&body=${bo}`;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (!isMobile) {
+      window.open(gmailWeb, "_blank");
+      return;
+    }
+    // Phone: try the Gmail app; fall back to Gmail web if it isn't installed.
+    const gmailApp = `googlegmail:///co?subject=${su}&body=${bo}`;
+    let handedOff = false;
+    const onHide = () => {
+      handedOff = true;
+    };
+    document.addEventListener("visibilitychange", onHide, { once: true });
+    window.location.href = gmailApp;
+    window.setTimeout(() => {
+      document.removeEventListener("visibilitychange", onHide);
+      if (!handedOff && !document.hidden) window.open(gmailWeb, "_blank");
+    }, 800);
   }
 
   async function onRevoke(): Promise<void> {
@@ -481,62 +504,4 @@ export async function renderEditor(id: string): Promise<void> {
   mount(container);
   if (dirty) void doSave();
   void refreshPreview();
-}
-
-// ---- E-mail dialog ----
-function openEmailDialog(model: Orcamento): void {
-  const to = h("input", { type: "email", id: "to", inputmode: "email", "aria-label": "Para (e-mail)" }) as HTMLInputElement;
-  const subject = h("input", { type: "text", id: "subject", "aria-label": "Assunto" }) as HTMLInputElement;
-  subject.value = `Orçamento — ${model.nome}`;
-  const bodyEl = h("textarea", { id: "body", "aria-label": "Mensagem" }) as HTMLTextAreaElement;
-  bodyEl.value = "Segue em anexo o orçamento da Stilus Decora.";
-  const status = h("p", { class: "help", role: "status" }, "");
-  const sendBtn = h("button", { class: "btn btn-primary" }, "Enviar");
-
-  const close = () => overlay.remove();
-
-  async function doSend(): Promise<void> {
-    if (!to.value.trim()) {
-      status.textContent = "Informe um e-mail.";
-      to.focus();
-      return;
-    }
-    sendBtn.setAttribute("disabled", "true");
-    status.textContent = "Enviando…";
-    try {
-      const b64 = await pdfBase64(model);
-      await api.sendEmail({
-        to: to.value.trim(),
-        subject: subject.value.trim(),
-        body: bodyEl.value.trim(),
-        pdfBase64: b64,
-        nome: pdfFilename(model).replace(/\.pdf$/, ""),
-      });
-      status.textContent = "Enviado ✓";
-      setTimeout(close, 900);
-    } catch (err) {
-      status.textContent = (err as Error).message || "Não foi possível enviar. Tente de novo.";
-      sendBtn.removeAttribute("disabled");
-    }
-  }
-  sendBtn.addEventListener("click", doSend);
-
-  const dialog = h(
-    "div",
-    { class: "dialog", role: "dialog", "aria-modal": "true" },
-    h("h2", {}, "Enviar por e-mail"),
-    h("div", { class: "field" }, h("label", { for: "to" }, "Para (e-mail)"), to),
-    h("div", { class: "field" }, h("label", { for: "subject" }, "Assunto"), subject),
-    h("div", { class: "field" }, h("label", { for: "body" }, "Mensagem"), bodyEl),
-    status,
-    h(
-      "div",
-      { class: "dialog-actions" },
-      h("button", { class: "btn btn-tertiary", onclick: close }, "Cancelar"),
-      sendBtn,
-    ),
-  );
-  const overlay: HTMLDivElement = h("div", { class: "overlay", onclick: (e: Event) => e.target === overlay && close() }, dialog);
-  document.body.appendChild(overlay);
-  to.focus();
 }
