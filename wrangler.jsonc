@@ -20,9 +20,12 @@
     {
       "binding": "DB",
       "database_name": "orcamentos-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "50d263a1-8164-4279-82bb-ed24209e2824"
     }
   ],
+
+  // Custom domain — provisioned on deploy (lsampaio.dev zone is on Cloudflare).
+  "routes": [{ "pattern": "orcamento.lsampaio.dev", "custom_domain": true }],
 
   // Non-secret vars. Secrets (APP_PASSWORD, SESSION_SECRET, RESEND_API_KEY)
   // are set with `wrangler secret put <NAME>` — never committed.
