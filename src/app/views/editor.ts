@@ -303,27 +303,15 @@ export async function renderEditor(id: string): Promise<void> {
     await printPdf(model);
   }
 
+  // Share the PDF file directly via the phone's native share sheet (Web Share
+  // API). On desktop / unsupported browsers, download the PDF so it can be
+  // attached manually. flushSave runs in the background so the PDF (built from
+  // the in-memory model) can be shared within the click gesture (iOS Safari).
   async function onWhatsApp(): Promise<void> {
-    await flushSave();
-    openWhatsAppDialog();
-  }
-
-  function shareWhatsAppLink(): void {
-    const link = `${location.origin}/o/${model.share_id}`;
-    const msg = `Olá! Segue o orçamento da Stilus Decora: ${link}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
-  }
-
-  async function makePdfFile(): Promise<File> {
+    void flushSave();
     const bytes = await pdfBytes(model);
     const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
-    return new File([blob], pdfFilename(model), { type: "application/pdf" });
-  }
-
-  // Open the phone's native share sheet with the PDF attached (Web Share API).
-  // On desktop / unsupported browsers, download the PDF so it can be attached
-  // manually. `file` is pre-generated so share() runs inside the click gesture.
-  async function shareWhatsAppPdf(file: File): Promise<void> {
+    const file = new File([blob], pdfFilename(model), { type: "application/pdf" });
     const nav = navigator as Navigator & { canShare?: (d?: ShareData) => boolean };
     if (nav.canShare && nav.canShare({ files: [file] })) {
       try {
@@ -336,47 +324,12 @@ export async function renderEditor(id: string): Promise<void> {
     }
   }
 
-  function openWhatsAppDialog(): void {
-    // start building the PDF immediately so "Enviar o PDF" can share in-gesture
-    const filePromise = makePdfFile();
-    const canSharePdf = typeof (navigator as Navigator & { canShare?: unknown }).canShare === "function";
-
-    const close = () => overlay.remove();
-
-    const pdfBtn = h(
-      "button",
-      { class: "btn btn-primary btn-block", type: "button" },
-      "📎 Enviar o PDF",
-    );
-    pdfBtn.addEventListener("click", async () => {
-      pdfBtn.setAttribute("disabled", "true");
-      pdfBtn.textContent = "Preparando…";
-      const file = await filePromise;
-      close();
-      await shareWhatsAppPdf(file);
-    });
-
-    const linkBtn = h(
-      "button",
-      { class: "btn btn-secondary btn-block", type: "button", onclick: () => { close(); shareWhatsAppLink(); } },
-      "🔗 Enviar o link",
-    );
-
-    const dialog = h(
-      "div",
-      { class: "dialog", role: "dialog", "aria-modal": "true" },
-      h("h2", {}, "Enviar por WhatsApp"),
-      h("p", { class: "help" }, "Como você quer enviar o orçamento?"),
-      h("div", { style: "display:grid;gap:10px;margin-top:8px" }, pdfBtn, linkBtn),
-      canSharePdf
-        ? null
-        : h("p", { class: "help" }, "Neste aparelho, o PDF será baixado para você anexar no WhatsApp."),
-      h("div", { class: "dialog-actions" }, h("button", { class: "btn btn-tertiary", type: "button", onclick: close }, "Cancelar")),
-    );
-    const overlay: HTMLDivElement = h("div", { class: "overlay", onclick: (e: Event) => e.target === overlay && close() }, dialog);
-    document.body.appendChild(overlay);
-    pdfBtn.focus();
-  }
+  // --- Older "share by link" version (kept for reference / easy re-enable) ---
+  // function shareWhatsAppLink(): void {
+  //   const link = `${location.origin}/o/${model.share_id}`;
+  //   const msg = `Olá! Segue o orçamento da Stilus Decora: ${link}`;
+  //   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+  // }
 
   async function onCopy(): Promise<void> {
     await flushSave();
