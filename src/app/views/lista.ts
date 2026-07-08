@@ -2,7 +2,7 @@
 
 import { api } from "../api";
 import type { OrcamentoListItem } from "../../shared/types";
-import { confirmDialog, h, mount, shortDate } from "../ui";
+import { confirmDialog, h, longDate, mount } from "../ui";
 import { goEditor, logout } from "../main";
 
 let showArchived = false;
@@ -12,7 +12,9 @@ export async function renderLista(): Promise<void> {
   mount(h("div", { class: "wrap" }, h("p", { class: "empty" }, "Carregando…")));
   let items: OrcamentoListItem[] = [];
   try {
-    const res = await api.list(showArchived);
+    // Always fetch everything so opening "Arquivados" is instant and in-place
+    // (no refetch, no re-mount, no scroll jump).
+    const res = await api.list(true);
     items = res.orcamentos;
   } catch {
     mount(h("div", { class: "wrap" }, h("p", { class: "error-text" }, "Não foi possível carregar. Recarregue a página.")));
@@ -30,19 +32,24 @@ export async function renderLista(): Promise<void> {
     },
   }) as HTMLInputElement;
 
+  // "Arquivados" accordion header: label + count on the left, chevron on the
+  // right. Toggling only re-renders the rows in place (no reload, no scroll).
+  const toggleLabel = h("span", {}, "🗂️ Arquivados");
+  const toggleChevron = h("span", { class: "chev", "aria-hidden": "true" }, "▸");
   const archivedToggle = h(
     "button",
     {
-      class: `btn ${showArchived ? "btn-secondary" : "btn-tertiary"} btn-block`,
+      class: "arch-toggle",
       type: "button",
-      "aria-pressed": String(showArchived),
+      "aria-expanded": String(showArchived),
       onclick: () => {
         showArchived = !showArchived;
-        renderLista();
+        renderRows();
       },
     },
-    showArchived ? "🗂️ Ocultar arquivados" : "🗂️ Mostrar arquivados",
-  );
+    toggleLabel,
+    toggleChevron,
+  ) as HTMLButtonElement;
 
   const activeHost = h("div", {});
   const archivedHost = h("div", {});
@@ -71,7 +78,6 @@ export async function renderLista(): Promise<void> {
   function matches(o: OrcamentoListItem, term: string): boolean {
     if (!term) return true;
     return (
-      o.nome.toLowerCase().includes(term) ||
       (o.cliente ?? "").toLowerCase().includes(term) ||
       String(o.numero ?? "").includes(term)
     );
@@ -81,6 +87,7 @@ export async function renderLista(): Promise<void> {
     const term = search.trim().toLowerCase();
     const ativos = items.filter((o) => o.status === "ativo" && matches(o, term));
     const arquivados = items.filter((o) => o.status === "arquivado" && matches(o, term));
+    const totalArquivados = items.filter((o) => o.status === "arquivado").length;
 
     // active orçamentos
     if (ativos.length === 0) {
@@ -97,13 +104,14 @@ export async function renderLista(): Promise<void> {
       activeHost.replaceChildren(...ativos.map((o) => rowCard(o)));
     }
 
-    // archived section — appears right below the toggle, clearly separated
+    // archived accordion — expands in place right below the header
+    toggleLabel.textContent = `🗂️ Arquivados${totalArquivados ? ` (${totalArquivados})` : ""}`;
+    archivedToggle.setAttribute("aria-expanded", String(showArchived));
     if (showArchived) {
       archivedHost.replaceChildren(
         h(
           "div",
           { class: "archived-section" },
-          h("h2", { class: "archived-title" }, `🗂️ Arquivados${arquivados.length ? ` (${arquivados.length})` : ""}`),
           arquivados.length === 0
             ? h("p", { class: "empty", style: "padding:16px" }, "Nenhum orçamento arquivado.")
             : h("div", {}, ...arquivados.map((o) => rowCard(o))),
@@ -116,19 +124,25 @@ export async function renderLista(): Promise<void> {
 
   function rowCard(o: OrcamentoListItem): HTMLElement {
     const arquivado = o.status === "arquivado";
+    const cliente = (o.cliente ?? "").trim();
     return h(
       "div",
       { class: `card${arquivado ? " card-archived" : ""}` },
       h(
         "div",
-        { class: "row-main" },
-        o.numero !== null ? h("span", { class: "row-numero" }, `nº ${o.numero}`) : null,
-        h("span", { class: "row-nome" }, o.nome),
-      ),
-      h(
-        "div",
-        { class: "row-sub" },
-        [o.cliente, `atualizado ${shortDate(o.updated_at)}`].filter(Boolean).join(" · "),
+        { class: "row-head" },
+        h("span", { class: "row-bignum" }, String(o.numero ?? "–")),
+        h(
+          "div",
+          { class: "row-info" },
+          h(
+            "span",
+            { class: "row-orc" },
+            "Orçamento ",
+            h("span", { class: "row-cliente" }, cliente || `nº ${o.numero ?? ""}`),
+          ),
+          h("span", { class: "row-data" }, `Data: ${longDate(o.updated_at)}`),
+        ),
       ),
       h(
         "div",
@@ -147,7 +161,7 @@ export async function renderLista(): Promise<void> {
 
   async function onNovo(): Promise<void> {
     try {
-      const res = await api.create({ nome: "", itens: [{ descricao: "", valor_centavos: 0 }] });
+      const res = await api.create({ itens: [{ descricao: "", valor_centavos: 0 }] });
       goEditor(res.orcamento.id);
     } catch {
       /* ignore */
@@ -165,14 +179,24 @@ export async function renderLista(): Promise<void> {
 
   async function onArchive(o: OrcamentoListItem): Promise<void> {
     if (o.status === "arquivado") {
-      await api.archive(o.id, "ativo").catch(() => {});
-      renderLista();
+      try {
+        await api.archive(o.id, "ativo");
+        o.status = "ativo";
+        renderRows();
+      } catch {
+        /* ignore */
+      }
       return;
     }
     const ok = await confirmDialog({ title: "Arquivar este orçamento?", confirmLabel: "Arquivar" });
     if (!ok) return;
-    await api.archive(o.id, "arquivado").catch(() => {});
-    renderLista();
+    try {
+      await api.archive(o.id, "arquivado");
+      o.status = "arquivado";
+      renderRows();
+    } catch {
+      /* ignore */
+    }
   }
 
   async function onDelete(o: OrcamentoListItem): Promise<void> {
@@ -182,8 +206,13 @@ export async function renderLista(): Promise<void> {
       danger: true,
     });
     if (!ok) return;
-    await api.remove(o.id).catch(() => {});
-    renderLista();
+    try {
+      await api.remove(o.id);
+      items = items.filter((it) => it.id !== o.id);
+      renderRows();
+    } catch {
+      /* ignore */
+    }
   }
 
   renderRows();

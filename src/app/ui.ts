@@ -1,5 +1,7 @@
 // Tiny DOM helpers + confirm dialog. No framework — plain, predictable UI.
 
+import { MESES } from "../shared/date";
+
 type Attrs = Record<string, string | number | boolean | ((e: Event) => void) | undefined>;
 type Child = Node | string | null | undefined | false;
 
@@ -84,4 +86,11 @@ export function shortDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+/** Format an ISO timestamp as PT-BR por extenso: "28 de julho de 2026". */
+export function longDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
 }

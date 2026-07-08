@@ -55,7 +55,6 @@ export async function renderEditor(id: string): Promise<void> {
 
   function toInput(): OrcamentoInput {
     return {
-      nome: model.nome,
       cliente: model.cliente,
       endereco: model.endereco,
       data_iso: model.data_iso,
@@ -315,7 +314,11 @@ export async function renderEditor(id: string): Promise<void> {
     const nav = navigator as Navigator & { canShare?: (d?: ShareData) => boolean };
     if (nav.canShare && nav.canShare({ files: [file] })) {
       try {
-        await nav.share({ files: [file], title: model.nome, text: "Orçamento da Stilus Decora" });
+        await nav.share({
+          files: [file],
+          title: `Orçamento nº ${model.numero ?? ""}`.trim(),
+          text: "Orçamento da Stilus Decora",
+        });
       } catch {
         /* user cancelled the share sheet */
       }
@@ -344,7 +347,9 @@ export async function renderEditor(id: string): Promise<void> {
   async function onEmail(): Promise<void> {
     await flushSave();
     const link = `${location.origin}/o/${model.share_id}`;
-    const subject = `Orçamento — ${model.nome}`;
+    const subject = [`Orçamento nº ${model.numero ?? ""}`.trim(), (model.cliente ?? "").trim()]
+      .filter(Boolean)
+      .join(" — ");
     const body = `Olá! Segue o orçamento da Stilus Decora: ${link}`;
     const su = encodeURIComponent(subject);
     const bo = encodeURIComponent(body);
@@ -370,19 +375,6 @@ export async function renderEditor(id: string): Promise<void> {
   }
 
   // ---- assemble ----
-  const nomeInput = h("input", {
-    type: "text",
-    "aria-label": "Nome do orçamento",
-    placeholder: "Nome do orçamento",
-    value: model.nome,
-    oninput: (e: Event) => {
-      model.nome = (e.target as HTMLInputElement).value;
-      changed();
-    },
-    onblur: () => flushSave(),
-    style: "min-width:0",
-  }) as HTMLInputElement;
-
   const shareActions = h(
     "div",
     { class: "toolbar-actions" },
@@ -434,23 +426,13 @@ export async function renderEditor(id: string): Promise<void> {
       h(
         "div",
         { class: "editor-col-form" },
+        // big page title: the orçamento number (there is no title field anymore)
+        h("h1", { class: "editor-numero" }, model.numero !== null ? `Orçamento Nº ${model.numero}` : "Orçamento"),
         // Section 1 — dados do orçamento (até a data)
         h(
       "section",
       { class: "section" },
-      h(
-        "div",
-        { class: "section-head" },
-        h("h2", { class: "section-title" }, "Dados do orçamento"),
-        model.numero !== null ? h("span", { class: "badge" }, `nº ${model.numero}`) : null,
-      ),
-      h(
-        "div",
-        { class: "field" },
-        h("label", { for: "nome" }, "Nome do orçamento"),
-        h("p", { class: "help" }, 'Só para você encontrar depois. Ex.: "Cliente Edson - armários"'),
-        nomeInput,
-      ),
+      h("h2", { class: "section-title" }, "Dados do orçamento"),
       textField("Cliente", model.cliente ?? "", (v) => (model.cliente = v)),
       textField("Endereço", model.endereco ?? "", (v) => (model.endereco = v)),
       h(

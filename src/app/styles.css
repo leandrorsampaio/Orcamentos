@@ -131,25 +131,38 @@ body {
   margin-bottom: 12px;
 }
 
-.row-main {
+/* list row: big number on the left, "Orçamento <cliente>" + date beside it */
+.row-head {
   display: flex;
-  gap: 12px;
-  align-items: baseline;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
-.row-numero {
-  color: var(--muted);
+.row-bignum {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--primary);
   font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+.row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.row-orc {
+  font-weight: 400;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+}
+.row-orc .row-cliente {
   font-weight: 700;
 }
-.row-nome {
-  font-weight: 700;
-  font-size: 20px;
-}
-.row-sub {
+.row-data {
   color: var(--muted);
   font-size: 16px;
-  margin-top: 2px;
 }
 .row-actions {
   display: flex;
@@ -423,23 +436,63 @@ textarea:focus-visible {
   padding: 40px 16px;
 }
 
-/* archived list — visually distinct block at the bottom of the Lista */
-.archived-section {
-  margin-top: 14px;
-}
-.archived-title {
-  font-size: 18px;
+/* archived accordion — header toggles the section open/closed in place */
+.arch-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px 16px;
+  font: inherit;
   font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  background: #dbe1e9;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.arch-toggle:focus-visible {
+  outline: var(--focus);
+  outline-offset: 2px;
+}
+.arch-toggle .chev {
+  font-size: 22px;
   color: var(--muted);
-  margin: 14px 0 12px;
+  transition: transform 0.15s ease;
+}
+.arch-toggle[aria-expanded="true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.arch-toggle[aria-expanded="true"] .chev {
+  transform: rotate(90deg);
+}
+.archived-section {
+  border: 2px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: #eef1f5;
+  padding: 12px 12px 4px;
 }
 .card-archived {
   background: #dbe1e9;
   border-color: #bcc5d1;
   border-left: 5px solid var(--muted);
 }
-.card-archived .row-nome {
+.card-archived .row-orc,
+.card-archived .row-bignum {
   color: var(--muted);
+}
+
+/* editor page title: the orçamento number */
+.editor-numero {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--primary);
+  margin: 4px 0 16px;
 }
 
 .toolbar-actions {
