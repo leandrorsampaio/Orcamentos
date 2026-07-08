@@ -4,21 +4,23 @@
 import type { Orcamento } from "../shared/types";
 import { buildOrcamentoPdf, pdfFilename } from "../render/pdf";
 
-let logoPromise: Promise<Uint8Array | null> | null = null;
+const assetCache = new Map<string, Promise<Uint8Array | null>>();
 
-function loadLogo(): Promise<Uint8Array | null> {
-  if (!logoPromise) {
-    logoPromise = fetch("/logo_final.png")
+function loadAsset(path: string): Promise<Uint8Array | null> {
+  let p = assetCache.get(path);
+  if (!p) {
+    p = fetch(path)
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .then((b) => (b ? new Uint8Array(b) : null))
       .catch(() => null);
+    assetCache.set(path, p);
   }
-  return logoPromise;
+  return p;
 }
 
 export async function pdfBytes(o: Orcamento): Promise<Uint8Array> {
-  const logo = await loadLogo();
-  return buildOrcamentoPdf(o, logo);
+  const [logo, assinatura] = await Promise.all([loadAsset("/logo_final.png"), loadAsset("/assinatura.png")]);
+  return buildOrcamentoPdf(o, logo, assinatura);
 }
 
 export async function pdfBlobUrl(o: Orcamento): Promise<string> {

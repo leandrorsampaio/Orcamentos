@@ -11,17 +11,19 @@ declare global {
   }
 }
 
-let logoBytes: Uint8Array | null | undefined;
+const assetCache = new Map<string, Uint8Array | null>();
 
-async function loadLogo(): Promise<Uint8Array | null> {
-  if (logoBytes !== undefined) return logoBytes;
+async function loadAsset(path: string): Promise<Uint8Array | null> {
+  if (assetCache.has(path)) return assetCache.get(path) ?? null;
+  let bytes: Uint8Array | null;
   try {
-    const r = await fetch("/logo_final.png");
-    logoBytes = r.ok ? new Uint8Array(await r.arrayBuffer()) : null;
+    const r = await fetch(path);
+    bytes = r.ok ? new Uint8Array(await r.arrayBuffer()) : null;
   } catch {
-    logoBytes = null;
+    bytes = null;
   }
-  return logoBytes;
+  assetCache.set(path, bytes);
+  return bytes;
 }
 
 const btn = document.getElementById("baixar") as HTMLButtonElement | null;
@@ -33,7 +35,11 @@ if (btn && o) {
     const label = btn.textContent;
     btn.textContent = "Gerando…";
     try {
-      const bytes = await buildOrcamentoPdf(o, await loadLogo());
+      const [logo, assinatura] = await Promise.all([
+        loadAsset("/logo_final.png"),
+        loadAsset("/assinatura.png"),
+      ]);
+      const bytes = await buildOrcamentoPdf(o, logo, assinatura);
       const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

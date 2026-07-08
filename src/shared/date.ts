@@ -1,7 +1,7 @@
 // PT-BR date helpers. Dates are stored as ISO "YYYY-MM-DD" and rendered as
 // "São Paulo, DD de <mês por extenso> de AAAA" (BUILD_SPEC §6).
 
-const MESES = [
+export const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
@@ -27,4 +27,18 @@ export function formatDataExtenso(iso: string | null | undefined): string {
   const day = Number(m[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return "";
   return `São Paulo, ${day} de ${MESES[month - 1]} de ${year}`;
+}
+
+/**
+ * "2026-06-30" → "30/06/2026" (para a linha de assinatura).
+ * Returns "" for empty/invalid input.
+ */
+export function formatDataCurta(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return "";
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+  return `${m[3]}/${m[2]}/${m[1]}`;
 }
