@@ -14,6 +14,7 @@ interface Row {
   itens_json: string;
   prazo: string | null;
   cond_pag: string | null;
+  observacoes: string | null;
   header_key: string;
   status: string;
   created_at: string;
@@ -62,6 +63,7 @@ function rowToOrcamento(r: Row): Orcamento {
     itens: parseItens(r.itens_json),
     prazo: r.prazo,
     cond_pag: r.cond_pag,
+    observacoes: r.observacoes,
     header_key: (r.header_key === "stilus" ? "stilus" : "lvi") as HeaderKey,
     status: (r.status === "arquivado" ? "arquivado" : "ativo") as Status,
     created_at: r.created_at,
@@ -114,12 +116,13 @@ export async function createOrcamento(env: Env, input: OrcamentoInput): Promise<
   const shareId = genShareId();
   const nome = (input.nome ?? "").trim() || `Orçamento nº ${numero}`;
   const condPag = input.cond_pag === undefined ? "50% de sinal, 50% na entrega" : input.cond_pag;
+  const observacoes = input.observacoes === undefined ? "Material entregue e instalado no local\nValidade da proposta 10 dias" : input.observacoes;
   const headerKey: HeaderKey = input.header_key === "stilus" ? "stilus" : "lvi";
 
   await env.DB.prepare(
     `INSERT INTO orcamentos
-      (id, numero, share_id, nome, cliente, endereco, data_iso, itens_json, prazo, cond_pag, header_key, status, created_at, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?, 'ativo', ?, ?)`,
+      (id, numero, share_id, nome, cliente, endereco, data_iso, itens_json, prazo, cond_pag, observacoes, header_key, status, created_at, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'ativo', ?, ?)`,
   )
     .bind(
       id,
@@ -132,6 +135,7 @@ export async function createOrcamento(env: Env, input: OrcamentoInput): Promise<
       JSON.stringify(sanitizeItens(input.itens)),
       input.prazo ?? null,
       condPag,
+      observacoes,
       headerKey,
       now,
       now,
@@ -152,7 +156,7 @@ export async function updateOrcamento(env: Env, id: string, input: OrcamentoInpu
   await env.DB.prepare(
     `UPDATE orcamentos SET
        nome = ?, cliente = ?, endereco = ?, data_iso = ?, itens_json = ?,
-       prazo = ?, cond_pag = ?, header_key = ?, updated_at = ?
+       prazo = ?, cond_pag = ?, observacoes = ?, header_key = ?, updated_at = ?
      WHERE id = ?`,
   )
     .bind(
@@ -163,6 +167,7 @@ export async function updateOrcamento(env: Env, id: string, input: OrcamentoInpu
       JSON.stringify(input.itens !== undefined ? sanitizeItens(input.itens) : existing.itens),
       input.prazo !== undefined ? input.prazo : existing.prazo,
       input.cond_pag !== undefined ? input.cond_pag : existing.cond_pag,
+      input.observacoes !== undefined ? input.observacoes : existing.observacoes,
       input.header_key !== undefined ? (input.header_key === "stilus" ? "stilus" : "lvi") : existing.header_key,
       now,
       id,
@@ -183,6 +188,7 @@ export async function copyOrcamento(env: Env, id: string): Promise<Orcamento | n
     itens: src.itens,
     prazo: src.prazo,
     cond_pag: src.cond_pag,
+    observacoes: src.observacoes,
     header_key: src.header_key,
   });
 }

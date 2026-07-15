@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS orcamentos (
   itens_json  TEXT NOT NULL,         -- JSON array [{descricao, valor_centavos}]
   prazo       TEXT,
   cond_pag    TEXT DEFAULT '50% de sinal, 50% na entrega',
+  observacoes TEXT DEFAULT 'Material entregue e instalado no local\nValidade da proposta 10 dias',
   header_key  TEXT DEFAULT 'lvi',    -- 'lvi' | 'stilus'
   status      TEXT DEFAULT 'ativo',  -- 'ativo' | 'arquivado'
   created_at  TEXT,

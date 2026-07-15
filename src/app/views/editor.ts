@@ -130,12 +130,13 @@ export async function renderEditor(id: string): Promise<void> {
     label: string,
     value: string,
     onInput: (v: string) => void,
-    opts: { help?: string; type?: string; multiline?: boolean } = {},
+    opts: { help?: string; type?: string; multiline?: boolean; rows?: number } = {},
   ): HTMLElement {
     const id2 = "f_" + Math.random().toString(36).slice(2, 8);
     const control = opts.multiline
       ? (h("textarea", {
           id: id2,
+          rows: opts.rows,
           oninput: (e: Event) => {
             onInput((e.target as HTMLTextAreaElement).value);
             changed();
@@ -174,6 +175,7 @@ export async function renderEditor(id: string): Promise<void> {
     const numero = String(idx + 1).padStart(2, "0");
     const desc = h("textarea", {
       "aria-label": `Descrição do item ${numero}`,
+      rows: 3,
       oninput: (e: Event) => {
         item.descricao = (e.target as HTMLTextAreaElement).value;
         changed();
@@ -467,8 +469,9 @@ export async function renderEditor(id: string): Promise<void> {
       { class: "section" },
       h("h2", { class: "section-title" }, "Prazo e pagamento"),
       textField("Prazo de entrega", model.prazo ?? "", (v) => (model.prazo = v), { help: 'Ex.: "10 dias"' }),
+      textField("Condição de pagamento", model.cond_pag ?? "", (v) => (model.cond_pag = v)),
       (() => {
-        const f = textField("Condição de pagamento", model.cond_pag ?? "", (v) => (model.cond_pag = v));
+        const f = textField("Observações", model.observacoes ?? "Material entregue e instalado no local\nValidade da proposta 10 dias", (v) => (model.observacoes = v), { multiline: true, rows: 3 });
         f.style.marginBottom = "0";
         return f;
       })(),

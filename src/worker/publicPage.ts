@@ -27,6 +27,7 @@ export function renderPublicPage(o: Orcamento): string {
   const endereco = (o.endereco ?? "").trim();
   const prazo = (o.prazo ?? "").trim();
   const condPag = (o.cond_pag ?? "").trim();
+  const observacoes = (o.observacoes ?? "").trim();
 
   const itensHtml = o.itens
     .map(
@@ -92,7 +93,7 @@ export function renderPublicPage(o: Orcamento): string {
       <div class="co">
         <h1>Stilus Decorações</h1>
         <p>Rua Chico Pontes, 812, Vila Guilherme - CEP 02067-002</p>
-        <p>Fone: (11) 2365-1649 / Cel: (WhatsApp) 9-1096-1541</p>
+        <p>Fone: (11) 2365-1649 / Cel: (WhatsApp) (11) 9 7958-8659</p>
         <p>E-mail: stilusdecora@gmail.com &nbsp; Instagram: stilus_decora</p>
       </div>
     </header>
@@ -104,9 +105,9 @@ export function renderPublicPage(o: Orcamento): string {
     ${itensHtml}
     ${totalHtml}
     <div class="foot">
-      ${prazo ? `<p>prazo de entrega: ${esc(prazo)}</p>` : ""}
+      ${prazo ? `<p>prazo: ${esc(prazo)}</p>` : ""}
       ${condPag ? `<p>cond. de pag.: ${esc(condPag)}</p>` : ""}
-      <p>material entregue e instalado no local</p>
+      ${observacoes ? `<p style="white-space: pre-wrap;">${esc(observacoes)}</p>` : ""}
     </div>
   </div>
   <div class="actions">

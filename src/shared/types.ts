@@ -21,6 +21,7 @@ export interface Orcamento {
   itens: OrcamentoItem[];
   prazo: string | null;
   cond_pag: string | null;
+  observacoes: string | null;
   header_key: HeaderKey;
   status: Status;
   created_at: string;
@@ -46,5 +47,6 @@ export interface OrcamentoInput {
   itens?: OrcamentoItem[];
   prazo?: string | null;
   cond_pag?: string | null;
+  observacoes?: string | null;
   header_key?: HeaderKey;
 }
