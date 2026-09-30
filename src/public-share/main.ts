@@ -2,12 +2,12 @@
 // /share.js (see vite.config.ts). Reads the inlined orçamento and wires the
 // "Baixar PDF" button to regenerate the exact PDF client-side.
 
-import type { Orcamento } from "../shared/types";
+import type { OrcamentoPdf } from "../shared/types";
 import { buildOrcamentoPdf, pdfFilename } from "../render/pdf";
 
 declare global {
   interface Window {
-    __ORCAMENTO__?: Orcamento;
+    __ORCAMENTO__?: OrcamentoPdf;
   }
 }
 
@@ -49,6 +49,9 @@ if (btn && o) {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch {
+      const hint = document.querySelector(".hint");
+      if (hint) hint.textContent = "Não foi possível gerar o PDF. Tente de novo.";
     } finally {
       btn.disabled = false;
       btn.textContent = label ?? "Baixar PDF";

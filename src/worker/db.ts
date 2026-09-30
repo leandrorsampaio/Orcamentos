@@ -2,6 +2,8 @@
 
 import type { Env } from "./env";
 import type { HeaderKey, Orcamento, OrcamentoInput, OrcamentoItem, OrcamentoListItem, Status } from "../shared/types";
+import { OBSERVACOES_PADRAO } from "../shared/orcamento";
+import { todayIsoSaoPaulo } from "../shared/date";
 
 interface Row {
   id: string;
@@ -36,16 +38,22 @@ function genId(): string {
   return crypto.randomUUID();
 }
 
+// One item, normalized. `a_combinar` is only written when true (so older
+// items keep their JSON shape) and such an item never carries a value.
+function cleanItem(i: Partial<OrcamentoItem> | null | undefined): OrcamentoItem {
+  const descricao = typeof i?.descricao === "string" ? i.descricao : "";
+  if (i?.a_combinar === true) return { descricao, valor_centavos: 0, a_combinar: true };
+  const v = i?.valor_centavos;
+  return { descricao, valor_centavos: typeof v === "number" && Number.isFinite(v) ? Math.round(v) : 0 };
+}
+
 function parseItens(json: string): OrcamentoItem[] {
   try {
     const arr = JSON.parse(json);
     if (!Array.isArray(arr)) return [];
     return arr
-      .map((i) => ({
-        descricao: typeof i?.descricao === "string" ? i.descricao : "",
-        valor_centavos: Number.isFinite(i?.valor_centavos) ? Math.round(i.valor_centavos) : 0,
-      }))
-      .filter((i) => i.descricao.trim() !== "" || i.valor_centavos !== 0);
+      .map(cleanItem)
+      .filter((i) => i.descricao.trim() !== "" || i.valor_centavos !== 0 || i.a_combinar);
   } catch {
     return [];
   }
@@ -73,23 +81,23 @@ function rowToOrcamento(r: Row): Orcamento {
 
 function sanitizeItens(itens: OrcamentoItem[] | undefined): OrcamentoItem[] {
   if (!Array.isArray(itens)) return [];
-  return itens.map((i) => ({
-    descricao: typeof i?.descricao === "string" ? i.descricao : "",
-    valor_centavos: Number.isFinite(i?.valor_centavos) ? Math.round(i.valor_centavos) : 0,
-  }));
+  return itens.map(cleanItem);
 }
 
-/** Atomically allocate the next human sequential number. */
+/** Atomically allocate the next human sequential number (one statement, so
+ *  two creates at the same moment can't read the same value). */
 async function nextNumero(env: Env): Promise<number> {
-  await env.DB.prepare("UPDATE counters SET value = value + 1 WHERE name = 'numero'").run();
-  const row = await env.DB.prepare("SELECT value FROM counters WHERE name = 'numero'").first<{ value: number }>();
-  return row?.value ?? 1;
+  const row = await env.DB
+    .prepare("UPDATE counters SET value = value + 1 WHERE name = 'numero' RETURNING value")
+    .first<{ value: number }>();
+  if (!row) throw new Error("counter 'numero' missing");
+  return row.value;
 }
 
 export async function listOrcamentos(env: Env, includeArchived: boolean): Promise<OrcamentoListItem[]> {
   const sql = includeArchived
-    ? "SELECT id, numero, nome, cliente, updated_at, status FROM orcamentos ORDER BY updated_at DESC"
-    : "SELECT id, numero, nome, cliente, updated_at, status FROM orcamentos WHERE status = 'ativo' ORDER BY updated_at DESC";
+    ? "SELECT id, numero, nome, cliente, data_iso, updated_at, status FROM orcamentos ORDER BY updated_at DESC"
+    : "SELECT id, numero, nome, cliente, data_iso, updated_at, status FROM orcamentos WHERE status = 'ativo' ORDER BY updated_at DESC";
   const res = await env.DB.prepare(sql).all<OrcamentoListItem>();
   return res.results ?? [];
 }
@@ -116,7 +124,7 @@ export async function createOrcamento(env: Env, input: OrcamentoInput): Promise<
   const shareId = genShareId();
   const nome = (input.nome ?? "").trim() || `Orçamento nº ${numero}`;
   const condPag = input.cond_pag === undefined ? "50% de sinal, 50% na entrega" : input.cond_pag;
-  const observacoes = input.observacoes === undefined ? "Material entregue e instalado no local\nValidade da proposta 10 dias" : input.observacoes;
+  const observacoes = input.observacoes === undefined ? OBSERVACOES_PADRAO : input.observacoes;
   const headerKey: HeaderKey = input.header_key === "stilus" ? "stilus" : "lvi";
 
   await env.DB.prepare(
@@ -184,7 +192,7 @@ export async function copyOrcamento(env: Env, id: string): Promise<Orcamento | n
     nome: `${src.nome} (cópia)`,
     cliente: src.cliente,
     endereco: src.endereco,
-    data_iso: new Date().toISOString().slice(0, 10),
+    data_iso: todayIsoSaoPaulo(), // not toISOString(): that is UTC, tomorrow after 21:00 in Brazil
     itens: src.itens,
     prazo: src.prazo,
     cond_pag: src.cond_pag,

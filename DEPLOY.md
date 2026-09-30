@@ -86,8 +86,9 @@ public link renders → revoke kills it (the old `/o/:shareId` returns the gener
 
 - **No stored PDFs, no R2** — the PDF is regenerated client-side from D1 data, so
   there is no file endpoint to hammer for cost.
-- **Public page is edge-cached** (`s-maxage=600`); a flood of one link is absorbed
-  by the CDN and never hits the Worker or D1.
+- **Public page is not cached** (`no-cache`): edits and revoked links show on
+  the next open. Each view is one Worker request + one D1 read (Free plan caps
+  a flood; there is no overage billing).
 - **Share IDs** are 22-char CSPRNG values (~131 bits) — not guessable, decoupled
   from the human `numero`. Revoking rotates the id, instantly 404-ing the old URL.
 - **Login** is constant-time compared, rate-limited, and locks an IP for 15 min

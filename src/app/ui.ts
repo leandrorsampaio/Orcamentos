@@ -30,10 +30,44 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+let unmountHooks: (() => void)[] = [];
+
+/** Replace the screen; runs the previous screen's `onUnmount` hooks first. */
 export function mount(node: Node): void {
+  const hooks = unmountHooks;
+  unmountHooks = [];
+  for (const fn of hooks) fn();
   const app = document.getElementById("app")!;
   app.replaceChildren(node);
   window.scrollTo(0, 0);
+}
+
+/** Run `fn` when the current screen is replaced (e.g. remove page listeners). */
+export function onUnmount(fn: () => void): void {
+  unmountHooks.push(fn);
+}
+
+/**
+ * Run `fn` with the clicked button disabled, so a double tap can't run it
+ * twice (e.g. two "Novo orçamento"). Use as `onclick: (e) => whileBusy(e, fn)`.
+ */
+export async function whileBusy(e: Event, fn: () => Promise<void>): Promise<void> {
+  const btn = e.currentTarget as HTMLButtonElement | null;
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
+  try {
+    await fn();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/** Short message at the bottom of the screen, e.g. when an action failed. */
+export function toast(message: string): void {
+  document.querySelector(".toast")?.remove();
+  const el = h("div", { class: "toast", role: "alert" }, message);
+  document.body.appendChild(el);
+  window.setTimeout(() => el.remove(), 5000);
 }
 
 export interface ConfirmOpts {

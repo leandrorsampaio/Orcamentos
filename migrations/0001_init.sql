@@ -9,10 +9,11 @@ CREATE TABLE IF NOT EXISTS orcamentos (
   cliente     TEXT,
   endereco    TEXT,
   data_iso    TEXT,                  -- ISO date (YYYY-MM-DD) shown on the doc
-  itens_json  TEXT NOT NULL,         -- JSON array [{descricao, valor_centavos}]
+  itens_json  TEXT NOT NULL,         -- JSON array [{descricao, valor_centavos, a_combinar?}]
   prazo       TEXT,
   cond_pag    TEXT DEFAULT '50% de sinal, 50% na entrega',
-  observacoes TEXT DEFAULT 'Material entregue e instalado no local\nValidade da proposta 10 dias',
+  -- char(10) is the line break: SQLite keeps a backslash-n in a string as two characters
+  observacoes TEXT DEFAULT ('Material entregue e instalado no local' || char(10) || 'Validade da proposta 10 dias'),
   header_key  TEXT DEFAULT 'lvi',    -- 'lvi' | 'stilus'
   status      TEXT DEFAULT 'ativo',  -- 'ativo' | 'arquivado'
   created_at  TEXT,

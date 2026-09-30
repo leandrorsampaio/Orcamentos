@@ -14,11 +14,18 @@ export function todayIso(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** Today as ISO "YYYY-MM-DD" in São Paulo — for the Worker, whose clock is UTC. */
+export function todayIsoSaoPaulo(): string {
+  // en-CA formats as YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
 /**
- * "2026-06-30" → "São Paulo, 30 de junho de 2026".
- * Returns "" for empty/invalid input (line is then omitted from output).
+ * "2026-06-30" → "30 de junho de 2026". Parsed from the text, not via Date
+ * (which would read it as UTC midnight, the previous day in Brazil).
+ * Returns "" for empty/invalid input.
  */
-export function formatDataExtenso(iso: string | null | undefined): string {
+export function formatDataLonga(iso: string | null | undefined): string {
   if (!iso) return "";
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
   if (!m) return "";
@@ -26,7 +33,16 @@ export function formatDataExtenso(iso: string | null | undefined): string {
   const month = Number(m[2]);
   const day = Number(m[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return "";
-  return `São Paulo, ${day} de ${MESES[month - 1]} de ${year}`;
+  return `${day} de ${MESES[month - 1]} de ${year}`;
+}
+
+/**
+ * "2026-06-30" → "São Paulo, 30 de junho de 2026".
+ * Returns "" for empty/invalid input (line is then omitted from output).
+ */
+export function formatDataExtenso(iso: string | null | undefined): string {
+  const longa = formatDataLonga(iso);
+  return longa ? `São Paulo, ${longa}` : "";
 }
 
 /**

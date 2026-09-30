@@ -6,7 +6,8 @@ import { api } from "../api";
 import type { Orcamento, OrcamentoInput, OrcamentoItem } from "../../shared/types";
 import { formatCentavos, parseCentavos } from "../../shared/money";
 import { todayIso } from "../../shared/date";
-import { confirmDialog, h, mount } from "../ui";
+import { OBSERVACOES_PADRAO } from "../../shared/orcamento";
+import { confirmDialog, h, mount, onUnmount, toast, whileBusy } from "../ui";
 import { goEditor, goLista } from "../main";
 import { downloadPdf, printPdf, pdfBlobUrl, pdfBytes, pdfFilename } from "../pdf-client";
 
@@ -29,25 +30,35 @@ export async function renderEditor(id: string): Promise<void> {
   }
   if (model.itens.length === 0) model.itens.push({ descricao: "", valor_centavos: 0 });
 
-  // Default the date to today so it always prints unless the user changes it.
+  // Defaults that always print unless the user changes them: today's date, and
+  // the standard observações for a record that has none (the field shows it,
+  // so the saved record and the PDF must have it too).
   let dirty = false;
   if (!model.data_iso) {
     model.data_iso = todayIso();
+    dirty = true;
+  }
+  if (model.observacoes === null) {
+    model.observacoes = OBSERVACOES_PADRAO;
     dirty = true;
   }
 
   // ---- save + preview scheduling ----
   let saveTimer = 0;
   let previewTimer = 0;
+  let inFlight: Promise<boolean> | null = null;
 
   const savedEl = h("span", { class: "saved hidden" }, "Salvo ✓");
-  function setSaved(state: "idle" | "saving" | "saved"): void {
-    savedEl.classList.remove("hidden", "saving");
+  function setSaved(state: "idle" | "saving" | "saved" | "error"): void {
+    savedEl.classList.remove("hidden", "saving", "error");
     if (state === "saving") {
       savedEl.classList.add("saving");
       savedEl.textContent = "Salvando…";
     } else if (state === "saved") {
       savedEl.textContent = "Salvo ✓";
+    } else if (state === "error") {
+      savedEl.classList.add("error");
+      savedEl.textContent = "⚠️ Não salvo — tentando de novo";
     } else {
       savedEl.classList.add("hidden");
     }
@@ -61,22 +72,38 @@ export async function renderEditor(id: string): Promise<void> {
       itens: model.itens,
       prazo: model.prazo,
       cond_pag: model.cond_pag,
+      observacoes: model.observacoes,
       header_key: model.header_key,
     };
   }
 
-  async function doSave(): Promise<void> {
-    if (!dirty) return;
+  // Save pending changes; resolves false when the save failed. A failure is
+  // shown ("Não salvo") and retried by itself every few seconds. An expired
+  // session is handled in api.ts (password dialog, then the save is retried).
+  async function doSave(opts: { keepalive?: boolean } = {}): Promise<boolean> {
+    while (inFlight) await inFlight; // one save on the wire at a time
+    if (!dirty) return true;
     dirty = false;
     setSaved("saving");
+    inFlight = api.update(model.id, toInput(), opts).then(
+      (res) => {
+        model.numero = res.orcamento.numero;
+        model.share_id = res.orcamento.share_id;
+        if (!dirty) setSaved("saved");
+        return true;
+      },
+      () => {
+        dirty = true;
+        setSaved("error");
+        window.clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(doSave, 5000);
+        return false;
+      },
+    );
     try {
-      const res = await api.update(model.id, toInput());
-      model.numero = res.orcamento.numero;
-      model.share_id = res.orcamento.share_id;
-      setSaved("saved");
-    } catch {
-      dirty = true;
-      setSaved("idle");
+      return await inFlight;
+    } finally {
+      inFlight = null;
     }
   }
 
@@ -87,9 +114,9 @@ export async function renderEditor(id: string): Promise<void> {
     saveTimer = window.setTimeout(doSave, 1200);
   }
 
-  async function flushSave(): Promise<void> {
+  async function flushSave(opts: { keepalive?: boolean } = {}): Promise<boolean> {
     window.clearTimeout(saveTimer);
-    await doSave();
+    return doSave(opts);
   }
 
   // ---- live preview ----
@@ -200,6 +227,27 @@ export async function renderEditor(id: string): Promise<void> {
       },
     }) as HTMLInputElement;
 
+    // "A combinar": the price is still to be agreed, so the value is cleared
+    // and locked; the PDF prints "A combinar" and leaves it out of the total.
+    function setACombinar(on: boolean): void {
+      valor.disabled = on;
+      valor.placeholder = on ? "" : "0,00";
+      if (on) valor.value = "";
+    }
+    const aCombinar = h("input", {
+      type: "checkbox",
+      checked: !!item.a_combinar,
+      onchange: (e: Event) => {
+        const on = (e.target as HTMLInputElement).checked;
+        item.a_combinar = on;
+        if (on) item.valor_centavos = 0;
+        setACombinar(on);
+        if (!on) valor.focus();
+        changed();
+      },
+    }) as HTMLInputElement;
+    setACombinar(!!item.a_combinar);
+
     return h(
       "div",
       { class: "item-card" },
@@ -259,6 +307,7 @@ export async function renderEditor(id: string): Promise<void> {
           { class: "valor-row" },
           h("span", { class: "prefix" }, "R$"),
           valor,
+          h("label", { class: "check" }, aCombinar, "A combinar"),
         ),
       ),
     );
@@ -290,7 +339,15 @@ export async function renderEditor(id: string): Promise<void> {
 
   // ---- toolbar actions ----
   async function onVoltar(): Promise<void> {
-    await flushSave();
+    if (!(await flushSave())) {
+      const sair = await confirmDialog({
+        title: "As últimas alterações não foram salvas (sem internet?). Sair mesmo assim?",
+        confirmLabel: "Sair sem salvar",
+        cancelLabel: "Ficar",
+        danger: true,
+      });
+      if (!sair) return;
+    }
     goLista();
   }
 
@@ -337,17 +394,24 @@ export async function renderEditor(id: string): Promise<void> {
   // }
 
   async function onCopy(): Promise<void> {
-    await flushSave();
+    // the copy is made from the saved record, so the latest edits must be in
+    if (!(await flushSave())) {
+      toast("As alterações não foram salvas (sem internet?), então a cópia não foi feita.");
+      return;
+    }
     try {
       const res = await api.copy(model.id);
       goEditor(res.orcamento.id);
     } catch {
-      /* ignore */
+      toast("Não foi possível fazer a cópia. Verifique a internet e tente de novo.");
     }
   }
 
-  async function onEmail(): Promise<void> {
-    await flushSave();
+  // Opens the mail compose screen synchronously, inside the tap: a window
+  // opened after an await (or after a timer) is blocked as a pop-up, mainly on
+  // iPhone. The save runs in the background, like WhatsApp.
+  function onEmail(): void {
+    void flushSave();
     const link = `${location.origin}/o/${model.share_id}`;
     const subject = [`Orçamento nº ${model.numero ?? ""}`.trim(), (model.cliente ?? "").trim()]
       .filter(Boolean)
@@ -355,25 +419,14 @@ export async function renderEditor(id: string): Promise<void> {
     const body = `Olá! Segue o orçamento da Stilus Decora: ${link}`;
     const su = encodeURIComponent(subject);
     const bo = encodeURIComponent(body);
-    const gmailWeb = `https://mail.google.com/mail/?view=cm&fs=1&su=${su}&body=${bo}`;
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    if (!isMobile) {
-      window.open(gmailWeb, "_blank");
-      return;
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      // the phone's mail app (Gmail when it is the default). A googlegmail://
+      // link shows an error when the Gmail app isn't installed.
+      window.location.href = `mailto:?subject=${su}&body=${bo}`;
+    } else {
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${su}&body=${bo}`, "_blank");
     }
-    // Phone: try the Gmail app; fall back to Gmail web if it isn't installed.
-    const gmailApp = `googlegmail:///co?subject=${su}&body=${bo}`;
-    let handedOff = false;
-    const onHide = () => {
-      handedOff = true;
-    };
-    document.addEventListener("visibilitychange", onHide, { once: true });
-    window.location.href = gmailApp;
-    window.setTimeout(() => {
-      document.removeEventListener("visibilitychange", onHide);
-      if (!handedOff && !document.hidden) window.open(gmailWeb, "_blank");
-    }, 800);
   }
 
   // ---- assemble ----
@@ -419,7 +472,7 @@ export async function renderEditor(id: string): Promise<void> {
       h("button", { class: "btn btn-secondary", type: "button", onclick: () => flushSave() }, "Salvar"),
       savedEl,
       h("span", { class: "grow" }),
-      h("button", { class: "btn btn-tertiary", type: "button", onclick: () => onCopy() }, "📄 Fazer uma cópia"),
+      h("button", { class: "btn btn-tertiary", type: "button", onclick: (e: Event) => whileBusy(e, onCopy) }, "📄 Fazer uma cópia"),
     ),
 
     h(
@@ -471,7 +524,7 @@ export async function renderEditor(id: string): Promise<void> {
       textField("Prazo de entrega", model.prazo ?? "", (v) => (model.prazo = v), { help: 'Ex.: "10 dias"' }),
       textField("Condição de pagamento", model.cond_pag ?? "", (v) => (model.cond_pag = v)),
       (() => {
-        const f = textField("Observações", model.observacoes ?? "Material entregue e instalado no local\nValidade da proposta 10 dias", (v) => (model.observacoes = v), { multiline: true, rows: 3 });
+        const f = textField("Observações", model.observacoes ?? "", (v) => (model.observacoes = v), { multiline: true, rows: 3 });
         f.style.marginBottom = "0";
         return f;
       })(),
@@ -494,4 +547,32 @@ export async function renderEditor(id: string): Promise<void> {
   mount(container);
   if (dirty) void doSave();
   void refreshPreview();
+
+  // Unsaved changes must survive leaving: switching apps or closing the tab
+  // saves with keepalive (the request outlives the page), and closing the tab
+  // also asks first. Coming back to the tab, or back online, retries a failed
+  // save at once (a hidden tab's retry timer can be slowed to once a minute).
+  // Registered after mount(): its unmount hooks run when the next screen is
+  // shown, so a normal navigation (e.g. the back button) saves too.
+  const onVisibility = () => {
+    if (dirty) void flushSave(document.visibilityState === "hidden" ? { keepalive: true } : {});
+  };
+  const onOnline = () => {
+    if (dirty) void flushSave();
+  };
+  const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (!dirty && !inFlight) return;
+    void flushSave({ keepalive: true });
+    e.preventDefault();
+    e.returnValue = "";
+  };
+  document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("online", onOnline);
+  window.addEventListener("beforeunload", onBeforeUnload);
+  onUnmount(() => {
+    document.removeEventListener("visibilitychange", onVisibility);
+    window.removeEventListener("online", onOnline);
+    window.removeEventListener("beforeunload", onBeforeUnload);
+    if (dirty) void flushSave();
+  });
 }

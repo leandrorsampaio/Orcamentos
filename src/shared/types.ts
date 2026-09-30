@@ -7,6 +7,8 @@ export interface OrcamentoItem {
   descricao: string;
   /** Value in integer centavos to avoid float errors. */
   valor_centavos: number;
+  /** Price still to be agreed: prints "A combinar" and stays out of the total. */
+  a_combinar?: boolean;
 }
 
 /** Full orçamento as used by the editor and the render code. */
@@ -28,12 +30,19 @@ export interface Orcamento {
   updated_at: string;
 }
 
+/** Only what the printed PDF needs (all the public share page may expose). */
+export type OrcamentoPdf = Pick<
+  Orcamento,
+  "numero" | "cliente" | "endereco" | "data_iso" | "itens" | "prazo" | "cond_pag" | "observacoes" | "header_key"
+>;
+
 /** Lightweight row for the Lista screen (no item bodies). */
 export interface OrcamentoListItem {
   id: string;
   numero: number | null;
   nome: string;
   cliente: string | null;
+  data_iso: string | null;
   updated_at: string;
   status: Status;
 }

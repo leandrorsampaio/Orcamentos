@@ -97,7 +97,7 @@ vite.config.ts            two entries: main (SPA) + share (stable /share.js name
 `orcamentos(id, numero, share_id, nome, cliente, endereco, data_iso,
 itens_json, prazo, cond_pag, header_key, status, created_at, updated_at)` plus
 `counters` (atomic `numero`), `login_attempts`, `rate_limits`. See
-`migrations/0001_init.sql`. Items live as JSON `[{descricao, valor_centavos}]`.
+`migrations/0001_init.sql`. Items live as JSON `[{descricao, valor_centavos, a_combinar?}]` (`a_combinar` = price still to be agreed: prints "A combinar", value 0, left out of the total).
 
 ## 7. Domain rules that matter
 
@@ -129,8 +129,11 @@ crashes the font encoder. If you change geometry, re-diff against the samples.
 
 - **No stored PDFs / no R2** → no file endpoint to hammer for cost. Free plan =
   hard limits, **no overage billing**.
-- **Public page is edge-cached** (`s-maxage=600`); a link flood is absorbed by
-  the CDN.
+- **Public page is not cached** (`Cache-Control: no-cache`) so an edit or a
+  revoked link shows on the next open. Cloudflare does not store Worker
+  responses in its CDN, so every view is one Worker request + one D1 read — far
+  inside the Free plan; a flood hits the plan's daily cap (HTTP 429/errors),
+  never a bill.
 - **share_id** = 22-char CSPRNG (~131 bits), never sequential. `/o/:shareId`
   returns the **same generic 404** for missing/revoked/archived (no
   enumeration). `revoke-link` rotates the id, instantly killing a leaked URL.

@@ -290,14 +290,46 @@ textarea:focus-visible {
   border-color: var(--danger);
 }
 
+/* the value keeps room for "123.456,00"; on phones narrower than ~390px the
+   "A combinar" checkbox wraps below it instead of squeezing it */
 .valor-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 10px 8px;
 }
 .valor-row .prefix {
   font-weight: 700;
   color: var(--muted);
+}
+.valor-row input[type="text"] {
+  flex: 1 1 118px;
+  min-width: 0;
+  padding-inline: 10px;
+}
+.valor-row input:disabled {
+  background: var(--bg);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+/* "A combinar" checkbox beside the value; the whole label is the tap target */
+.valor-row .check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  margin: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.valor-row .check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
 }
 
 /* sticky bottom action */
@@ -330,6 +362,27 @@ textarea:focus-visible {
 }
 .saving {
   color: var(--muted);
+}
+.saved.error {
+  color: var(--danger);
+}
+
+/* short message at the bottom (failed action) */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--surface);
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(31, 41, 51, 0.25);
+  z-index: 200;
 }
 
 /* editor two-column layout: form left (~40%), live preview right (~60%) */
@@ -421,6 +474,9 @@ textarea:focus-visible {
 .dialog h2 {
   margin: 0 0 12px;
   font-size: 20px;
+}
+.dialog p {
+  margin: 0 0 14px;
 }
 .dialog .dialog-actions {
   display: flex;

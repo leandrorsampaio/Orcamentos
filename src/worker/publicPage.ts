@@ -1,11 +1,11 @@
 // Server-rendered read-only public page for /o/:shareId (BUILD_SPEC §3, §7, §8).
-// Self-contained HTML, edge-cacheable. The "Baixar PDF" button is wired by the
+// Self-contained HTML. The "Baixar PDF" button is wired by the
 // standalone /share.js bundle, which regenerates the exact PDF client-side.
 
 import type { Orcamento } from "../shared/types";
 import { formatBRL } from "../shared/money";
 import { formatDataExtenso } from "../shared/date";
-import { itemNumero, shouldShowTotal, totalCentavos } from "../shared/orcamento";
+import { A_COMBINAR, itemNumero, pdfData, shouldShowTotal, totalLinha } from "../shared/orcamento";
 
 function esc(s: string): string {
   return s
@@ -34,13 +34,14 @@ export function renderPublicPage(o: Orcamento): string {
       (item, idx) => `
       <div class="item">
         <div class="item-desc">${esc(itemNumero(idx))} / ${esc((item.descricao ?? "").trim())}</div>
-        <div class="item-valor"><span>valor</span><b>${esc(formatBRL(item.valor_centavos))}</b></div>
+        <div class="item-valor"><span>valor</span><b>${esc(item.a_combinar ? A_COMBINAR : formatBRL(item.valor_centavos))}</b></div>
       </div>`,
     )
     .join("");
 
+  const total = totalLinha(o.itens);
   const totalHtml = shouldShowTotal(o.itens)
-    ? `<div class="total"><span>TOTAL</span><b>${esc(formatBRL(totalCentavos(o.itens)))}</b></div>`
+    ? `<div class="total"><span>${esc(total.label)}</span><b>${esc(total.centavos === null ? A_COMBINAR : formatBRL(total.centavos))}</b></div>`
     : "";
 
   return `<!doctype html>
@@ -114,7 +115,7 @@ export function renderPublicPage(o: Orcamento): string {
     <button id="baixar" type="button">Baixar PDF</button>
     <p class="hint">Orçamento da Stilus Decora</p>
   </div>
-  <script>window.__ORCAMENTO__ = ${safeJson(o)};</script>
+  <script>window.__ORCAMENTO__ = ${safeJson(pdfData(o))};</script>
   <script type="module" src="/share.js"></script>
 </body>
 </html>`;

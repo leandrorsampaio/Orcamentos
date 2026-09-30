@@ -2,8 +2,9 @@
 
 import { api } from "../api";
 import type { OrcamentoListItem } from "../../shared/types";
-import { confirmDialog, h, longDate, mount } from "../ui";
+import { confirmDialog, h, longDate, mount, toast, whileBusy } from "../ui";
 import { goEditor, logout } from "../main";
+import { formatDataLonga } from "../../shared/date";
 
 let showArchived = false;
 let search = "";
@@ -63,7 +64,7 @@ export async function renderLista(): Promise<void> {
       h("span", { class: "title grow" }, "Meus orçamentos"),
       h(
         "button",
-        { class: "btn btn-primary", onclick: () => onNovo() },
+        { class: "btn btn-primary", onclick: (e: Event) => whileBusy(e, onNovo) },
         h("span", { class: "ico" }, "＋"),
         "Novo orçamento",
       ),
@@ -141,20 +142,21 @@ export async function renderLista(): Promise<void> {
             "Orçamento ",
             h("span", { class: "row-cliente" }, cliente || `nº ${o.numero ?? ""}`),
           ),
-          h("span", { class: "row-data" }, `Data: ${longDate(o.updated_at)}`),
+          // the date printed on the orçamento (last edit only if it has none)
+          h("span", { class: "row-data" }, `Data: ${formatDataLonga(o.data_iso) || longDate(o.updated_at)}`),
         ),
       ),
       h(
         "div",
         { class: "row-actions" },
         h("button", { class: "btn btn-secondary", onclick: () => goEditor(o.id) }, "Abrir"),
-        h("button", { class: "btn btn-tertiary", onclick: () => onCopy(o.id) }, "Fazer uma cópia"),
+        h("button", { class: "btn btn-tertiary", onclick: (e: Event) => whileBusy(e, () => onCopy(o.id)) }, "Fazer uma cópia"),
         h(
           "button",
-          { class: "btn btn-tertiary", onclick: () => onArchive(o) },
+          { class: "btn btn-tertiary", onclick: (e: Event) => whileBusy(e, () => onArchive(o)) },
           arquivado ? "Desarquivar" : "Arquivar",
         ),
-        arquivado ? h("button", { class: "btn btn-danger", onclick: () => onDelete(o) }, "Apagar") : null,
+        arquivado ? h("button", { class: "btn btn-danger", onclick: (e: Event) => whileBusy(e, () => onDelete(o)) }, "Apagar") : null,
       ),
     );
   }
@@ -164,7 +166,7 @@ export async function renderLista(): Promise<void> {
       const res = await api.create({ itens: [{ descricao: "", valor_centavos: 0 }] });
       goEditor(res.orcamento.id);
     } catch {
-      /* ignore */
+      toast("Não foi possível criar o orçamento. Verifique a internet e tente de novo.");
     }
   }
 
@@ -173,7 +175,7 @@ export async function renderLista(): Promise<void> {
       const res = await api.copy(id);
       goEditor(res.orcamento.id);
     } catch {
-      /* ignore */
+      toast("Não foi possível fazer a cópia. Verifique a internet e tente de novo.");
     }
   }
 
@@ -184,7 +186,7 @@ export async function renderLista(): Promise<void> {
         o.status = "ativo";
         renderRows();
       } catch {
-        /* ignore */
+        toast("Não foi possível desarquivar. Verifique a internet e tente de novo.");
       }
       return;
     }
@@ -195,7 +197,7 @@ export async function renderLista(): Promise<void> {
       o.status = "arquivado";
       renderRows();
     } catch {
-      /* ignore */
+      toast("Não foi possível arquivar. Verifique a internet e tente de novo.");
     }
   }
 
@@ -211,7 +213,7 @@ export async function renderLista(): Promise<void> {
       items = items.filter((it) => it.id !== o.id);
       renderRows();
     } catch {
-      /* ignore */
+      toast("Não foi possível apagar. Verifique a internet e tente de novo.");
     }
   }
 

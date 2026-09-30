@@ -36,15 +36,16 @@ const app = new Hono<{ Bindings: Env }>();
 
 const now = () => Date.now();
 
-// ---- Public share page (no auth). Edge-cacheable, generic 404. ----
+// ---- Public share page (no auth). Generic 404. ----
 app.get("/o/:shareId", async (c) => {
   const o = await getByShareId(c.env, c.req.param("shareId"));
   if (!o) {
     return c.html(renderNotFoundPage(), 404, { "Cache-Control": "no-store" });
   }
   return c.html(renderPublicPage(o), 200, {
-    // absorbed by the Cloudflare edge; busted by the short TTL after edits/revoke
-    "Cache-Control": "public, max-age=300, s-maxage=600",
+    // always fresh: an edit (or a revoked link) shows on the next open. Worker
+    // responses are not stored by Cloudflare's CDN, so s-maxage never helped.
+    "Cache-Control": "no-cache",
     "X-Robots-Tag": "noindex, nofollow",
   });
 });

@@ -1,9 +1,10 @@
-// Login screen — one shared password (BUILD_SPEC §12).
+// Login screen — one shared password (BUILD_SPEC §12). The same form is also
+// shown as a dialog when the session runs out while the app is open.
 
 import { api } from "../api";
 import { h, mount } from "../ui";
 
-export function renderLogin(onSuccess: () => void): void {
+function loginForm(onSuccess: () => void): { form: HTMLFormElement; input: HTMLInputElement } {
   const error = h("p", { class: "error-text", role: "alert" });
   error.style.visibility = "hidden";
 
@@ -47,7 +48,11 @@ export function renderLogin(onSuccess: () => void): void {
     error,
     btn,
   );
+  return { form, input };
+}
 
+export function renderLogin(onSuccess: () => void): void {
+  const { form, input } = loginForm(onSuccess);
   const box = h(
     "div",
     { class: "login-box" },
@@ -58,4 +63,27 @@ export function renderLogin(onSuccess: () => void): void {
 
   mount(h("div", { class: "wrap" }, box));
   input.focus();
+}
+
+/** Ask for the password again over the current screen, so nothing is lost. */
+export function loginDialog(): Promise<void> {
+  return new Promise((resolve) => {
+    const { form, input } = loginForm(() => {
+      overlay.remove();
+      resolve();
+    });
+    const overlay = h(
+      "div",
+      { class: "overlay" },
+      h(
+        "div",
+        { class: "dialog", role: "dialog", "aria-modal": "true" },
+        h("h2", {}, "Sua sessão expirou"),
+        h("p", {}, "Digite a senha para continuar. O que você fez não foi perdido."),
+        form,
+      ),
+    );
+    document.body.appendChild(overlay);
+    input.focus();
+  });
 }

@@ -1,8 +1,8 @@
 // SPA bootstrap + minimal history router. Two screens: Lista and Editor.
 
 import "./styles.css";
-import { api } from "./api";
-import { renderLogin } from "./views/login";
+import { api, setReauthHandler } from "./api";
+import { loginDialog, renderLogin } from "./views/login";
 import { renderLista } from "./views/lista";
 import { renderEditor } from "./views/editor";
 import { mount, h } from "./ui";
@@ -56,6 +56,10 @@ export async function logout(): Promise<void> {
 window.addEventListener("popstate", () => {
   render();
 });
+
+// A call that comes back 401 while the app is open asks for the password in
+// a dialog and is retried, instead of failing silently.
+setReauthHandler(loginDialog);
 
 async function boot(): Promise<void> {
   mount(h("div", { class: "wrap" }, h("p", { class: "empty" }, "Carregando…")));
