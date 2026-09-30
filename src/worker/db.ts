@@ -39,12 +39,13 @@ function genId(): string {
 }
 
 // One item, normalized. `a_combinar` is only written when true (so older
-// items keep their JSON shape) and such an item never carries a value.
+// items keep their JSON shape). Such an item keeps its value — not printed,
+// not totalled — so unticking "A combinar" brings the price back.
 function cleanItem(i: Partial<OrcamentoItem> | null | undefined): OrcamentoItem {
   const descricao = typeof i?.descricao === "string" ? i.descricao : "";
-  if (i?.a_combinar === true) return { descricao, valor_centavos: 0, a_combinar: true };
   const v = i?.valor_centavos;
-  return { descricao, valor_centavos: typeof v === "number" && Number.isFinite(v) ? Math.round(v) : 0 };
+  const valor_centavos = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : 0;
+  return i?.a_combinar === true ? { descricao, valor_centavos, a_combinar: true } : { descricao, valor_centavos };
 }
 
 function parseItens(json: string): OrcamentoItem[] {

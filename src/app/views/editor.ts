@@ -227,26 +227,21 @@ export async function renderEditor(id: string): Promise<void> {
       },
     }) as HTMLInputElement;
 
-    // "A combinar": the price is still to be agreed, so the value is cleared
-    // and locked; the PDF prints "A combinar" and leaves it out of the total.
-    function setACombinar(on: boolean): void {
-      valor.disabled = on;
-      valor.placeholder = on ? "" : "0,00";
-      if (on) valor.value = "";
-    }
+    // "A combinar": the price is still to be agreed. The value stays in the
+    // field, greyed out and locked, so unticking brings it back; the PDF prints
+    // "A combinar" and leaves it out of the total.
     const aCombinar = h("input", {
       type: "checkbox",
       checked: !!item.a_combinar,
       onchange: (e: Event) => {
         const on = (e.target as HTMLInputElement).checked;
         item.a_combinar = on;
-        if (on) item.valor_centavos = 0;
-        setACombinar(on);
+        valor.disabled = on;
         if (!on) valor.focus();
         changed();
       },
     }) as HTMLInputElement;
-    setACombinar(!!item.a_combinar);
+    valor.disabled = !!item.a_combinar;
 
     return h(
       "div",

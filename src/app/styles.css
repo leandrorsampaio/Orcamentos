@@ -307,9 +307,14 @@ textarea:focus-visible {
   min-width: 0;
   padding-inline: 10px;
 }
+/* "A combinar" ticked: the price stays visible, greyed out and locked
+   (iOS Safari fades disabled text on its own, hence fill-color + opacity) */
 .valor-row input:disabled {
   background: var(--bg);
   border-color: var(--border);
+  color: var(--muted);
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
   cursor: not-allowed;
 }
 /* "A combinar" checkbox beside the value; the whole label is the tap target */

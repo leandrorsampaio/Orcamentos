@@ -7,7 +7,8 @@ export interface OrcamentoItem {
   descricao: string;
   /** Value in integer centavos to avoid float errors. */
   valor_centavos: number;
-  /** Price still to be agreed: prints "A combinar" and stays out of the total. */
+  /** Price still to be agreed: prints "A combinar" and stays out of the total.
+   *  `valor_centavos` is kept (not printed), so unticking restores the price. */
   a_combinar?: boolean;
 }
 

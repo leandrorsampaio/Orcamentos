@@ -19,7 +19,7 @@ export function itemNumero(index: number): string {
 
 /** Items that actually carry a value (used for total + "at least one" rule). */
 export function itensComValor(itens: OrcamentoItem[]): OrcamentoItem[] {
-  return itens.filter((i) => Number.isFinite(i.valor_centavos) && i.valor_centavos > 0);
+  return itens.filter((i) => !i.a_combinar && Number.isFinite(i.valor_centavos) && i.valor_centavos > 0);
 }
 
 /** Printed instead of a price for items whose value is still to be agreed. */

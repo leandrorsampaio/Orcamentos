@@ -97,7 +97,7 @@ vite.config.ts            two entries: main (SPA) + share (stable /share.js name
 `orcamentos(id, numero, share_id, nome, cliente, endereco, data_iso,
 itens_json, prazo, cond_pag, header_key, status, created_at, updated_at)` plus
 `counters` (atomic `numero`), `login_attempts`, `rate_limits`. See
-`migrations/0001_init.sql`. Items live as JSON `[{descricao, valor_centavos, a_combinar?}]` (`a_combinar` = price still to be agreed: prints "A combinar", value 0, left out of the total).
+`migrations/0001_init.sql`. Items live as JSON `[{descricao, valor_centavos, a_combinar?}]` (`a_combinar` = price still to be agreed: prints "A combinar" and is left out of the total; the value is kept, greyed out in the editor, so unticking restores it).
 
 ## 7. Domain rules that matter
 
